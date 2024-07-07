@@ -3,12 +3,13 @@ use std::{
     io::{self, ErrorKind},
     process,
 };
-use tokio::fs::File;
+use tokio::{fs::File, runtime};
 
 mod generate;
 mod sort;
 
 const BLOCK_SIZE: u64 = 4096;
+const MAX_MEM: u64 = 536870912; // 0.5GiB
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -27,18 +28,18 @@ struct Config {
     /// The size of the file to generate.
     #[arg(short, long)]
     size: Option<u64>,
-    /// The size of the file to generate.
-    #[arg(short, long, default_value_t = 536870912)]
-    max_mem: u64,
+    //// The size of the file to generate.
+    // #[arg(short, long, default_value_t = 536870912)]
+    // max_mem: u64,
 }
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let cfg = Config::parse();
-    if cfg.max_mem < BLOCK_SIZE {
-        eprintln!("Max allowed memory must be larger than {BLOCK_SIZE}B");
-        process::exit(1);
-    }
+    assert!(
+        MAX_MEM > BLOCK_SIZE,
+        "Max allowed memory must be larger than {BLOCK_SIZE}B"
+    );
     if cfg.generate {
         let res = match cfg.size {
             None => Result::Err(io::Error::new(
@@ -61,7 +62,11 @@ async fn main() -> io::Result<()> {
             }
         }
     } else if cfg.sort {
-        sort::sort(cfg).await?
+        // let r = runtime::Builder::new_multi_thread()
+        //     .enable_io()
+        //     // .thread_stack_size(MAX_MEM as usize * 2)
+        //     .build()?;
+        // sort::sort(r, cfg).await?;
     } else {
         eprintln!("One of --generate or --sort must be passed.");
         process::exit(1);
