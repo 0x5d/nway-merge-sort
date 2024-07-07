@@ -11,12 +11,15 @@ pub async fn generate_data(file: File, size_bytes: u64) -> io::Result<()> {
     let writer_handle = writer(file, rx);
     let mut set = JoinSet::new();
     let mut remaining = size_bytes;
+    let num_cores = std::thread::available_parallelism().unwrap().get();
+
+    let mem_per_core = crate::MAX_MEM / num_cores as u64;
 
     while remaining > 0 {
-        let to_write = if remaining < crate::BLOCK_SIZE * 4 {
+        let to_write = if remaining < mem_per_core {
             remaining
         } else {
-            crate::BLOCK_SIZE * 4
+            mem_per_core
         };
 
         let tx = tx.clone();

@@ -6,9 +6,10 @@ use std::{
 use tokio::fs::File;
 
 mod generate;
-mod sort;
+// mod sort;
 
 const BLOCK_SIZE: u64 = 4096;
+const MAX_MEM: u64 = 536870912; // 0.5GiB
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -61,7 +62,7 @@ async fn main() -> io::Result<()> {
             }
         }
     } else if cfg.sort {
-        sort::sort(cfg).await?
+        // sort::sort(cfg).await?
     } else {
         eprintln!("One of --generate or --sort must be passed.");
         process::exit(1);
