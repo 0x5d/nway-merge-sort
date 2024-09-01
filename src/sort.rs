@@ -1,5 +1,6 @@
 use std::{
-    fs::File,
+    collections::BinaryHeap,
+    fs::{self, File},
     io::{self, Read, Seek, Write},
     os::unix::fs::MetadataExt,
     sync::Arc,
@@ -10,7 +11,19 @@ use tokio::task::JoinSet;
 use crate::{bucket, Config};
 
 pub async fn sort(cfg: crate::Config) -> io::Result<()> {
-    let _res = split(&cfg).await?;
+    let files = split(&cfg).await?;
+
+    // let mut heap = BinaryHeap::new();
+    // let mut buf = [0 as u8; crate::BLOCK_SIZE as usize];
+    // loop {
+    //     let keep = vec![];
+    //     for (i, f) in files.iter().enumerate() {
+    //         f.seek(io::SeekFrom::Start(0))?;
+    //         let n = f.read(&mut buf)?;
+    //         keep.push(n == 0);
+    //     }
+    //     files.retain(||);
+    // }
     Ok(())
 }
 
