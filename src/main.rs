@@ -9,7 +9,7 @@ mod bucket;
 mod generate;
 mod sort;
 
-const BLOCK_SIZE: u64 = 4096;
+const BLOCK_SIZE: usize = 4096;
 const ONE_GIB: u64 = 1073741824;
 
 /// Generate & sort big files.
@@ -39,7 +39,7 @@ struct Config {
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let cfg = Config::parse();
-    if cfg.max_mem < BLOCK_SIZE {
+    if (cfg.max_mem as usize) < BLOCK_SIZE {
         eprintln!("Max allowed memory must be larger than {BLOCK_SIZE}B");
         process::exit(1);
     }
