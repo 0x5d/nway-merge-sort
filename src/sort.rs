@@ -1,6 +1,6 @@
 use std::{
     collections::BinaryHeap,
-    fs::{self, File},
+    fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write},
     os::unix::fs::MetadataExt,
     sync::Arc,
@@ -8,22 +8,67 @@ use std::{
 
 use tokio::task::JoinSet;
 
-use crate::{bucket, Config};
+use crate::{bucket, Config, BLOCK_SIZE};
+
+struct Block {
+    fileIdx: i64,
+    block: [u8; BLOCK_SIZE],
+}
+
+impl PartialOrd for Block {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        todo!()
+    }
+}
+
+impl PartialEq for Block {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
+}
 
 pub async fn sort(cfg: crate::Config) -> io::Result<()> {
-    let files = split(&cfg).await?;
+    println!("Split");
+    let mut files = split(&cfg).await?;
+    println!("Sort");
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&cfg.file)?;
 
-    // let mut heap = BinaryHeap::new();
-    // let mut buf = [0 as u8; crate::BLOCK_SIZE as usize];
-    // loop {
-    //     let keep = vec![];
-    //     for (i, f) in files.iter().enumerate() {
-    //         f.seek(io::SeekFrom::Start(0))?;
-    //         let n = f.read(&mut buf)?;
-    //         keep.push(n == 0);
-    //     }
-    //     files.retain(||);
-    // }
+    let mut heap = BinaryHeap::new();
+    let mut buf = [0 as u8; crate::BLOCK_SIZE as usize];
+    println!("Sort loop");
+    loop {
+        THE PROBLEM HERE IS THAT I'M POPPING 1 BLOCK, BUT READING N BLOCKS IN THE NEXT ITERATION.
+        I gotta fill it back with a block coming from the same file from which the popped block came.
+
+        let mut keep = vec![];
+        for mut f in &files {
+            // println!("Seeking");
+            f.seek(io::SeekFrom::Start(0))?;
+            // println!("Reading from int file");
+            let n = f.read(&mut buf)?;
+            // println!("Read from int file");
+            keep.push(n != 0); // We'll keep only files which still have contents to read.
+            heap.push(buf.clone());
+        }
+        match heap.pop() {
+            Some(b) => {
+                // println!("Writing to target file");
+                let n = file.write(&b)?;
+                // println!("Wrote {n} bytes");
+            } //write b to file,
+            None => break, // The heap is empty - we're done.
+        }
+        if !files.is_empty() {
+            let mut iter = keep.iter();
+            files.retain(|_| *iter.next().unwrap());
+            if files.is_empty() {
+                break;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -44,7 +89,12 @@ async fn split(cfg: &Config) -> io::Result<Vec<File>> {
         let int_file_size = cfg.int_file_size;
         set.spawn_blocking(move || {
             fs::create_dir_all(&int_file_dir)?;
-            let mut f = File::create(format!("{}/{}.txt", int_file_dir, i.to_string()))?;
+            let filename = format!("{}/{}.txt", int_file_dir, i.to_string());
+            let mut f = OpenOptions::new()
+                .write(true)
+                .read(true)
+                .truncate(true)
+                .open(filename)?;
             let mut file = File::open(name.clone())?;
 
             let o = i as u64 * int_file_size;
