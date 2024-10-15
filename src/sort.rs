@@ -38,7 +38,6 @@ impl PartialEq for Block {
 pub async fn sort(cfg: crate::Config) -> io::Result<()> {
     println!("Split");
     let mut files = split(&cfg).await?;
-    panic!("stop");
     println!("Sort");
     let mut file = OpenOptions::new()
         .write(true)
@@ -112,10 +111,12 @@ async fn split(cfg: &Config) -> io::Result<Vec<File>> {
         )
     })?;
     println!("size: {}", meta.size());
-    let num_cores = std::thread::available_parallelism().unwrap().get();
     let no_intermediate_files = meta.size() / cfg.int_file_size;
     println!("Intermediate files {no_intermediate_files}");
-    let b = bucket::Bucket::new(num_cores as i32);
+    // More workers means more allocations, which can cause memory swaps since the disk is the
+    // bottleneck. If a thread is spawned for every core (10 on my mac m1 pro), the split phase
+    // takes >400% longer (25s vs 2m 40s).
+    let b = bucket::Bucket::new(cfg.split_concurrency);
     let b = Arc::new(b);
     let mut set = JoinSet::new();
     let int_file_dir = &cfg.int_file_dir.clone();
